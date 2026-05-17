@@ -1,5 +1,9 @@
 #include "tasksys.h"
 
+#include <mutex>
+#include <thread>
+#include <vector>
+
 
 IRunnable::~IRunnable() {}
 
@@ -49,27 +53,45 @@ const char* TaskSystemParallelSpawn::name() {
 }
 
 TaskSystemParallelSpawn::TaskSystemParallelSpawn(int num_threads): ITaskSystem(num_threads) {
-    //
-    // TODO: CS149 student implementations may decide to perform setup
-    // operations (such as thread pool construction) here.
-    // Implementations are free to add new class member variables
-    // (requiring changes to tasksys.h).
-    //
+    num_threads_ = num_threads;
 }
 
 TaskSystemParallelSpawn::~TaskSystemParallelSpawn() {}
 
 void TaskSystemParallelSpawn::run(IRunnable* runnable, int num_total_tasks) {
+    int next_task_id = 0;
+    std::mutex task_mutex;
+    std::vector<std::thread> workers;
 
+    int worker_count = num_threads_;
+    if (worker_count > num_total_tasks) {
+        worker_count = num_total_tasks;
+    }
+    if (worker_count < 1) {
+        worker_count = 1;
+    }
 
-    //
-    // TODO: CS149 students will modify the implementation of this
-    // method in Part A.  The implementation provided below runs all
-    // tasks sequentially on the calling thread.
-    //
+    for (int i = 0; i < worker_count; i++) {
+        workers.emplace_back([&]() {
+            while (true) {
+                int task_id;
 
-    for (int i = 0; i < num_total_tasks; i++) {
-        runnable->runTask(i, num_total_tasks);
+                {
+                    std::lock_guard<std::mutex> lock(task_mutex);
+                    if (next_task_id >= num_total_tasks) {
+                        return;
+                    }
+                    task_id = next_task_id;
+                    next_task_id++;
+                }
+
+                runnable->runTask(task_id, num_total_tasks);
+            }
+        });
+    }
+
+    for (std::thread& worker : workers) {
+        worker.join();
     }
 }
 

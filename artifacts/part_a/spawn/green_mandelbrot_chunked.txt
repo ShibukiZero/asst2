@@ -1,0 +1,22 @@
+runtasks_ref
+Linux aarch64
+================================================================================
+Running task system grading harness... (1 total tests)
+  - Detected CPU with 16 execution contexts
+  - Task system configured to use at most 16 threads
+================================================================================
+================================================================================
+Executing test: mandelbrot_chunked...
+Reference binary: ./runtasks_ref_linux_arm
+Results for: mandelbrot_chunked
+                                        STUDENT   REFERENCE   PERF?
+[Serial]                                411.289   410.812     1.00  (OK)
+[Parallel + Always Spawn]               26.102    26.138      1.00  (OK)
+[Parallel + Thread Pool + Spin]         411.208   28.959      14.20  (NOT OK)
+[Parallel + Thread Pool + Sleep]        411.099   25.845      15.91  (NOT OK)
+================================================================================
+Overall performance results
+[Serial]                                : All passed Perf
+[Parallel + Always Spawn]               : All passed Perf
+[Parallel + Thread Pool + Spin]         : Perf did not pass all tests
+[Parallel + Thread Pool + Sleep]        : Perf did not pass all tests
