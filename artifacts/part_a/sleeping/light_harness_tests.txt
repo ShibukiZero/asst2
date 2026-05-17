@@ -1,0 +1,31 @@
+runtasks_ref
+Linux aarch64
+================================================================================
+Running task system grading harness... (2 total tests)
+  - Detected CPU with 16 execution contexts
+  - Task system configured to use at most 16 threads
+================================================================================
+================================================================================
+Executing test: super_super_light...
+Reference binary: ./runtasks_ref_linux_arm
+Results for: super_super_light
+                                        STUDENT   REFERENCE   PERF?
+[Serial]                                10.278    10.273      1.00  (OK)
+[Parallel + Always Spawn]               136.923   135.079     1.01  (OK)
+[Parallel + Thread Pool + Spin]         18.858    27.91       0.68  (OK)
+[Parallel + Thread Pool + Sleep]        9.967     13.783      0.72  (OK)
+================================================================================
+Executing test: super_light...
+Reference binary: ./runtasks_ref_linux_arm
+Results for: super_light
+                                        STUDENT   REFERENCE   PERF?
+[Serial]                                88.008    88.04       1.00  (OK)
+[Parallel + Always Spawn]               137.242   136.041     1.01  (OK)
+[Parallel + Thread Pool + Spin]         18.364    25.825      0.71  (OK)
+[Parallel + Thread Pool + Sleep]        16.219    16.205      1.00  (OK)
+================================================================================
+Overall performance results
+[Serial]                                : All passed Perf
+[Parallel + Always Spawn]               : All passed Perf
+[Parallel + Thread Pool + Spin]         : All passed Perf
+[Parallel + Thread Pool + Sleep]        : All passed Perf

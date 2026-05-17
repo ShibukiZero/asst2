@@ -6,6 +6,8 @@ This directory stores experiment outputs from the AWS grading environment.
 
 - `part_a/spawn/`: Part A Step 1 results for `TaskSystemParallelSpawn`.
 - `part_a/spinning/`: Part A Step 2 results for `TaskSystemParallelThreadPoolSpinning`.
+- `part_a/custom_tests/`: Custom synchronization edge-case tests used while preparing `TaskSystemParallelThreadPoolSleeping`.
+- `part_a/sleeping/`: Part A Step 3 results for `TaskSystemParallelThreadPoolSleeping`.
 
 ## Naming
 

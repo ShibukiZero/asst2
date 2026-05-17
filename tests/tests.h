@@ -23,6 +23,10 @@ TestResults mathOperationsInTightForLoopFanInTest(ITaskSystem* t);
 TestResults mathOperationsInTightForLoopReductionTreeTest(ITaskSystem* t);
 TestResults spinBetweenRunCallsTest(ITaskSystem *t);
 TestResults mandelbrotChunkedTest(ITaskSystem* t);
+TestResults zeroTasksSyncTest(ITaskSystem* t);
+TestResults fewerTasksThanThreadsSyncTest(ITaskSystem* t);
+TestResults repeatedLaunchesSyncTest(ITaskSystem* t);
+TestResults unevenWorkExactOnceSyncTest(ITaskSystem* t);
 
 Async with dependencies tests
 =============================
@@ -565,6 +569,154 @@ TestResults simpleTestSync(ITaskSystem* t) {
 
 TestResults simpleTestAsync(ITaskSystem* t) {
     return simpleTest(t, true);
+}
+
+class CountingTask : public IRunnable {
+    public:
+        std::atomic<int>* counts_;
+        int delay_us_;
+
+        CountingTask(std::atomic<int>* counts, int delay_us)
+            : counts_(counts), delay_us_(delay_us) {}
+        ~CountingTask() {}
+
+        void runTask(int task_id, int num_total_tasks) {
+            if (delay_us_ > 0 && task_id % 3 == 0) {
+                std::this_thread::sleep_for(std::chrono::microseconds(delay_us_));
+            }
+            counts_[task_id]++;
+        }
+};
+
+class GenerationWriteTask : public IRunnable {
+    public:
+        int* output_;
+        int generation_;
+        int delay_us_;
+
+        GenerationWriteTask(int* output, int generation, int delay_us)
+            : output_(output), generation_(generation), delay_us_(delay_us) {}
+        ~GenerationWriteTask() {}
+
+        void runTask(int task_id, int num_total_tasks) {
+            if (delay_us_ > 0 && task_id % 4 == 0) {
+                std::this_thread::sleep_for(std::chrono::microseconds(delay_us_));
+            }
+            output_[task_id] = generation_;
+        }
+};
+
+TestResults zeroTasksSyncTest(ITaskSystem* t) {
+    std::atomic<int>* counts = new std::atomic<int>[1];
+    counts[0].store(0);
+    CountingTask task(counts, 0);
+
+    double start_time = CycleTimer::currentSeconds();
+    t->run(&task, 0);
+    double end_time = CycleTimer::currentSeconds();
+
+    TestResults result;
+    result.passed = counts[0].load() == 0;
+    result.time = end_time - start_time;
+
+    if (!result.passed) {
+        printf("zeroTasksSyncTest: task ran unexpectedly\n");
+    }
+
+    delete [] counts;
+    return result;
+}
+
+TestResults fewerTasksThanThreadsSyncTest(ITaskSystem* t) {
+    int num_tasks = 3;
+    std::atomic<int>* counts = new std::atomic<int>[num_tasks];
+    for (int i = 0; i < num_tasks; i++) {
+        counts[i].store(0);
+    }
+    CountingTask task(counts, 0);
+
+    double start_time = CycleTimer::currentSeconds();
+    t->run(&task, num_tasks);
+    double end_time = CycleTimer::currentSeconds();
+
+    TestResults result;
+    result.passed = true;
+    for (int i = 0; i < num_tasks; i++) {
+        if (counts[i].load() != 1) {
+            printf("fewerTasksThanThreadsSyncTest: task %d ran %d times\n",
+                   i, counts[i].load());
+            result.passed = false;
+            break;
+        }
+    }
+    result.time = end_time - start_time;
+
+    delete [] counts;
+    return result;
+}
+
+TestResults repeatedLaunchesSyncTest(ITaskSystem* t) {
+    int num_tasks = 16;
+    int num_launches = 40;
+    int* output = new int[num_tasks];
+    for (int i = 0; i < num_tasks; i++) {
+        output[i] = 0;
+    }
+
+    TestResults result;
+    result.passed = true;
+
+    double start_time = CycleTimer::currentSeconds();
+    for (int launch = 1; launch <= num_launches; launch++) {
+        GenerationWriteTask task(output, launch, 25);
+        t->run(&task, num_tasks);
+
+        for (int i = 0; i < num_tasks; i++) {
+            if (output[i] != launch) {
+                printf("repeatedLaunchesSyncTest: launch %d task %d output=%d\n",
+                       launch, i, output[i]);
+                result.passed = false;
+                break;
+            }
+        }
+
+        if (!result.passed) {
+            break;
+        }
+    }
+    double end_time = CycleTimer::currentSeconds();
+    result.time = end_time - start_time;
+
+    delete [] output;
+    return result;
+}
+
+TestResults unevenWorkExactOnceSyncTest(ITaskSystem* t) {
+    int num_tasks = 64;
+    std::atomic<int>* counts = new std::atomic<int>[num_tasks];
+    for (int i = 0; i < num_tasks; i++) {
+        counts[i].store(0);
+    }
+    CountingTask task(counts, 200);
+
+    double start_time = CycleTimer::currentSeconds();
+    t->run(&task, num_tasks);
+    double end_time = CycleTimer::currentSeconds();
+
+    TestResults result;
+    result.passed = true;
+    for (int i = 0; i < num_tasks; i++) {
+        if (counts[i].load() != 1) {
+            printf("unevenWorkExactOnceSyncTest: task %d ran %d times\n",
+                   i, counts[i].load());
+            result.passed = false;
+            break;
+        }
+    }
+    result.time = end_time - start_time;
+
+    delete [] counts;
+    return result;
 }
 
 /*

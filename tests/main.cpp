@@ -49,7 +49,7 @@ ITaskSystem *selectTaskSystemRefImpl(int num_threads, TaskSystemType type) {
 
 int main(int argc, char** argv)
 {
-    const int n_tests = 31;
+    const int n_tests = 35;
     int num_threads = DEFAULT_NUM_THREADS;
     int num_timing_iterations = DEFAULT_NUM_TIMING_ITERATIONS;
 
@@ -67,6 +67,10 @@ int main(int argc, char** argv)
         mathOperationsInTightForLoopReductionTreeTest,
         spinBetweenRunCallsTest,
         mandelbrotChunkedTest,
+        zeroTasksSyncTest,
+        fewerTasksThanThreadsSyncTest,
+        repeatedLaunchesSyncTest,
+        unevenWorkExactOnceSyncTest,
         pingPongEqualAsyncTest,
         pingPongUnequalAsyncTest,
         superLightAsyncTest,
@@ -99,6 +103,10 @@ int main(int argc, char** argv)
         "math_operations_in_tight_for_loop_reduction_tree",
         "spin_between_run_calls",
         "mandelbrot_chunked",
+        "zero_tasks_sync",
+        "fewer_tasks_than_threads_sync",
+        "repeated_launches_sync",
+        "uneven_work_exact_once_sync",
         "ping_pong_equal_async",
         "ping_pong_unequal_async",
         "super_light_async",

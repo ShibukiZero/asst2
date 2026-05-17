@@ -232,34 +232,125 @@ const char* TaskSystemParallelThreadPoolSleeping::name() {
 }
 
 TaskSystemParallelThreadPoolSleeping::TaskSystemParallelThreadPoolSleeping(int num_threads): ITaskSystem(num_threads) {
-    //
-    // TODO: CS149 student implementations may decide to perform setup
-    // operations (such as thread pool construction) here.
-    // Implementations are free to add new class member variables
-    // (requiring changes to tasksys.h).
-    //
+    num_threads_ = num_threads;
+    if (num_threads_ < 1) {
+        num_threads_ = 1;
+    }
+    current_runnable_ = nullptr;
+    total_tasks_ = 0;
+    next_task_id_.store(0);
+    completed_tasks_.store(0);
+    has_work_ = false;
+    shutdown_ = false;
+
+    for (int i = 0; i < num_threads_; i++) {
+        workers_.emplace_back(&TaskSystemParallelThreadPoolSleeping::workerLoop, this);
+    }
 }
 
 TaskSystemParallelThreadPoolSleeping::~TaskSystemParallelThreadPoolSleeping() {
-    //
-    // TODO: CS149 student implementations may decide to perform cleanup
-    // operations (such as thread pool shutdown construction) here.
-    // Implementations are free to add new class member variables
-    // (requiring changes to tasksys.h).
-    //
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        shutdown_ = true;
+    }
+    work_cv_.notify_all();
+
+    for (std::thread& worker : workers_) {
+        if (worker.joinable()) {
+            worker.join();
+        }
+    }
 }
 
 void TaskSystemParallelThreadPoolSleeping::run(IRunnable* runnable, int num_total_tasks) {
+    if (num_total_tasks <= 0) {
+        return;
+    }
 
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        current_runnable_ = runnable;
+        total_tasks_ = num_total_tasks;
+        next_task_id_.store(0);
+        completed_tasks_.store(0);
+        has_work_ = true;
+    }
+    work_cv_.notify_all();
 
-    //
-    // TODO: CS149 students will modify the implementation of this
-    // method in Parts A and B.  The implementation provided below runs all
-    // tasks sequentially on the calling thread.
-    //
+    int task_chunk_size = (num_total_tasks < num_threads_) ? 1 : 2;
+    while (true) {
+        int start_task_id = next_task_id_.fetch_add(task_chunk_size);
+        if (start_task_id >= num_total_tasks) {
+            break;
+        }
+        int end_task_id = start_task_id + task_chunk_size;
+        if (end_task_id > num_total_tasks) {
+            end_task_id = num_total_tasks;
+        }
 
-    for (int i = 0; i < num_total_tasks; i++) {
-        runnable->runTask(i, num_total_tasks);
+        for (int task_id = start_task_id; task_id < end_task_id; task_id++) {
+            runnable->runTask(task_id, num_total_tasks);
+        }
+
+        int completed_now = end_task_id - start_task_id;
+        if (completed_tasks_.fetch_add(completed_now) + completed_now == num_total_tasks) {
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                has_work_ = false;
+            }
+            done_cv_.notify_one();
+        }
+    }
+
+    std::unique_lock<std::mutex> lock(mutex_);
+    done_cv_.wait(lock, [this]() {
+        return completed_tasks_.load() == total_tasks_;
+    });
+}
+
+void TaskSystemParallelThreadPoolSleeping::workerLoop() {
+    while (true) {
+        int start_task_id = -1;
+        int end_task_id = -1;
+        int task_chunk_size = 1;
+        int total_tasks = 0;
+        IRunnable* runnable = nullptr;
+
+        {
+            std::unique_lock<std::mutex> lock(mutex_);
+            work_cv_.wait(lock, [this]() {
+                return shutdown_ || (has_work_ && next_task_id_.load() < total_tasks_);
+            });
+
+            if (shutdown_) {
+                return;
+            }
+
+            task_chunk_size = (total_tasks_ < num_threads_) ? 1 : 2;
+            start_task_id = next_task_id_.fetch_add(task_chunk_size);
+            if (start_task_id >= total_tasks_) {
+                continue;
+            }
+            end_task_id = start_task_id + task_chunk_size;
+            if (end_task_id > total_tasks_) {
+                end_task_id = total_tasks_;
+            }
+            total_tasks = total_tasks_;
+            runnable = current_runnable_;
+        }
+
+        for (int task_id = start_task_id; task_id < end_task_id; task_id++) {
+            runnable->runTask(task_id, total_tasks);
+        }
+
+        int completed_now = end_task_id - start_task_id;
+        if (completed_tasks_.fetch_add(completed_now) + completed_now == total_tasks) {
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                has_work_ = false;
+            }
+            done_cv_.notify_one();
+        }
     }
 }
 
