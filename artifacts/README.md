@@ -8,6 +8,7 @@ This directory stores experiment outputs from the AWS grading environment.
 - `part_a/spinning/`: Part A Step 2 results for `TaskSystemParallelThreadPoolSpinning`.
 - `part_a/custom_tests/`: Custom synchronization edge-case tests used while preparing `TaskSystemParallelThreadPoolSleeping`.
 - `part_a/sleeping/`: Part A Step 3 results for `TaskSystemParallelThreadPoolSleeping`.
+- `part_b/`: Part B async dependency scheduler results, including the final async harness and custom dependency checks.
 
 ## Naming
 

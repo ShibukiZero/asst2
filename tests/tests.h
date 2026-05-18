@@ -27,6 +27,7 @@ TestResults zeroTasksSyncTest(ITaskSystem* t);
 TestResults fewerTasksThanThreadsSyncTest(ITaskSystem* t);
 TestResults repeatedLaunchesSyncTest(ITaskSystem* t);
 TestResults unevenWorkExactOnceSyncTest(ITaskSystem* t);
+TestResults asyncReturnsBeforeCompletionTest(ITaskSystem* t);
 
 Async with dependencies tests
 =============================
@@ -606,6 +607,25 @@ class GenerationWriteTask : public IRunnable {
         }
 };
 
+class SlowAsyncMarkerTask : public IRunnable {
+    public:
+        std::atomic<int>* started_;
+        std::atomic<int>* completed_;
+        int delay_ms_;
+
+        SlowAsyncMarkerTask(std::atomic<int>* started,
+                            std::atomic<int>* completed,
+                            int delay_ms)
+            : started_(started), completed_(completed), delay_ms_(delay_ms) {}
+        ~SlowAsyncMarkerTask() {}
+
+        void runTask(int task_id, int num_total_tasks) {
+            started_->fetch_add(1);
+            std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms_));
+            completed_->fetch_add(1);
+        }
+};
+
 TestResults zeroTasksSyncTest(ITaskSystem* t) {
     std::atomic<int>* counts = new std::atomic<int>[1];
     counts[0].store(0);
@@ -716,6 +736,43 @@ TestResults unevenWorkExactOnceSyncTest(ITaskSystem* t) {
     result.time = end_time - start_time;
 
     delete [] counts;
+    return result;
+}
+
+TestResults asyncReturnsBeforeCompletionTest(ITaskSystem* t) {
+    TestResults result;
+    result.passed = true;
+    result.time = 0.0;
+
+    if (std::string(t->name()) != "Parallel + Thread Pool + Sleep") {
+        return result;
+    }
+
+    std::atomic<int> started(0);
+    std::atomic<int> completed(0);
+    SlowAsyncMarkerTask task(&started, &completed, 200);
+    std::vector<TaskID> deps;
+
+    double start_time = CycleTimer::currentSeconds();
+    t->runAsyncWithDeps(&task, 1, deps);
+    double return_time = CycleTimer::currentSeconds();
+
+    bool returned_before_completion = completed.load() == 0;
+    t->sync();
+    double end_time = CycleTimer::currentSeconds();
+
+    result.passed = returned_before_completion && completed.load() == 1;
+    result.time = end_time - start_time;
+
+    if (!returned_before_completion) {
+        printf("asyncReturnsBeforeCompletionTest: runAsyncWithDeps completed work before returning, return time %.3f ms\n",
+               (return_time - start_time) * 1000.0);
+    }
+    if (completed.load() != 1) {
+        printf("asyncReturnsBeforeCompletionTest: completed %d tasks instead of 1\n",
+               completed.load());
+    }
+
     return result;
 }
 

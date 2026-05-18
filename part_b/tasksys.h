@@ -2,6 +2,11 @@
 #define _TASKSYS_H
 
 #include "itasksys.h"
+#include <atomic>
+#include <condition_variable>
+#include <deque>
+#include <mutex>
+#include <thread>
 
 /*
  * TaskSystemSerial: This class is the student's implementation of a
@@ -68,6 +73,43 @@ class TaskSystemParallelThreadPoolSleeping: public ITaskSystem {
         TaskID runAsyncWithDeps(IRunnable* runnable, int num_total_tasks,
                                 const std::vector<TaskID>& deps);
         void sync();
+
+    private:
+        struct LaunchState {
+            IRunnable* runnable;
+            int total_tasks;
+            int next_task_id;
+            int completed_tasks;
+            int remaining_dependencies;
+            int task_chunk_size;
+            std::vector<TaskID> dependents;
+            bool chunk_size_chosen;
+            bool completed;
+        };
+
+        void workerLoop();
+        bool executeRunChunk();
+        bool executeReadyChunk();
+        void enqueueReadyLaunchLocked(TaskID id);
+        void completeLaunchLocked(TaskID id);
+
+        int num_threads_;
+        std::vector<std::thread> workers_;
+        std::mutex mutex_;
+        std::condition_variable work_cv_;
+        std::condition_variable sync_cv_;
+        std::condition_variable run_done_cv_;
+
+        IRunnable* run_runnable_;
+        int run_total_tasks_;
+        std::atomic<int> run_next_task_id_;
+        std::atomic<int> run_completed_tasks_;
+        bool run_has_work_;
+
+        std::deque<TaskID> ready_launches_;
+        std::vector<LaunchState> launches_;
+        int unfinished_launches_;
+        bool shutdown_;
 };
 
 #endif
