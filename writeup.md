@@ -15,7 +15,7 @@ for every task id in the range `[0, num_total_tasks)`. For Part A, `run()` must
 be synchronous: when `run()` returns, every task in that bulk launch has already
 completed.
 
-Our Part A implementation uses dynamic task assignment for all parallel systems.
+The Part A implementation uses dynamic task assignment for all parallel systems.
 Instead of giving each worker a fixed range of task ids before execution starts,
 workers claim task ids from shared state while the bulk launch is running. This
 was useful because the runtime does not know whether each task has equal cost.
@@ -125,7 +125,7 @@ behavior of `run()`.
 
 ### Part B Dependency Tracking
 
-For Part B, we implemented dependency tracking only in
+For Part B, dependency tracking was implemented only in
 `TaskSystemParallelThreadPoolSleeping`, as required by the assignment.
 
 Each call to `runAsyncWithDeps()` creates one launch record and returns its
@@ -161,7 +161,7 @@ and launch completion decrements it. `sync()` waits until this count becomes
 zero. While waiting, `sync()` also helps execute ready chunks instead of only
 sleeping.
 
-For Part B's synchronous `run()`, we kept a separate fast path modeled after the
+For Part B's synchronous `run()`, a separate fast path was kept, modeled after the
 Part A sleeping thread pool. This avoids sending synchronous Part A-style
 workloads through the heavier dependency-graph queue. The assignment states that
 programs will either use `run()` or `runAsyncWithDeps()`, so these two paths do
@@ -267,14 +267,14 @@ counters, which made it competitive on both tiny and heavier workloads.
 
 ## 3. Custom Test
 
-We implemented several synchronous custom tests:
+Several synchronous custom tests were implemented:
 
 - `zero_tasks_sync`
 - `fewer_tasks_than_threads_sync`
 - `repeated_launches_sync`
 - `uneven_work_exact_once_sync`
 
-The main test we would highlight is `repeated_launches_sync`.
+The main test to highlight is `repeated_launches_sync`.
 
 ### What The Test Does
 
@@ -292,9 +292,9 @@ This test checks several important synchronous runtime properties:
 - Workers must not keep using stale state from a previous launch.
 - Every task id must run exactly once in every launch.
 
-### How We Verified It
+### How It Was Verified
 
-We ran the custom test on the AWS ARM instance using the assignment test
+The custom test was run on the AWS ARM instance using the assignment test
 executable. The archived output is:
 
 ```text
@@ -307,7 +307,7 @@ The final full Part A harness was also archived at:
 artifacts/part_a/sleeping/final_full_harness.txt
 ```
 
-For Part B, we added `async_returns_before_completion`. This test is specific to
+For Part B, `async_returns_before_completion` was added. This test is specific to
 `TaskSystemParallelThreadPoolSleeping`. It launches one slow async task and
 checks that `runAsyncWithDeps()` returns before that task has completed, then
 calls `sync()` and checks that the task did complete. This caught the original
